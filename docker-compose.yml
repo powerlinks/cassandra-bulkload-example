@@ -1,0 +1,12 @@
+version: '2'
+services:
+  app:
+    image: gradle:jdk8
+    mem_limit: 2000000000
+    environment:
+    - DEBUG=true
+    - CONFIG=production
+    volumes:
+      - .:/opt/app
+    working_dir: /opt/app
+    entrypoint: ./gradlew run

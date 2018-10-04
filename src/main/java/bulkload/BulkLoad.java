@@ -15,17 +15,12 @@ package bulkload;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.List;
+import java.lang.System;
 
-import org.supercsv.io.CsvListReader;
-import org.supercsv.prefs.CsvPreference;
+import org.json.JSONObject;
 
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -37,50 +32,85 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
  */
 public class BulkLoad
 {
-    public static final String CSV_URL = "http://real-chart.finance.yahoo.com/table.csv?s=%s";
-
     /** Default output directory */
     public static final String DEFAULT_OUTPUT_DIR = "./data";
 
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-
     /** Keyspace name */
-    public static final String KEYSPACE = "quote";
-    /** Table name */
-    public static final String TABLE = "historical_prices";
+    public static final String KEYSPACE = "mappings";
 
     /**
      * Schema for bulk loading table.
      * It is important not to forget adding keyspace name before table name,
      * otherwise CQLSSTableWriter throws exception.
      */
-    public static final String SCHEMA = String.format("CREATE TABLE %s.%s (" +
-                                                          "ticker ascii, " +
-                                                          "date timestamp, " +
-                                                          "open decimal, " +
-                                                          "high decimal, " +
-                                                          "low decimal, " +
-                                                          "close decimal, " +
-                                                          "volume bigint, " +
-                                                          "adj_close decimal, " +
-                                                          "PRIMARY KEY (ticker, date) " +
-                                                      ") WITH CLUSTERING ORDER BY (date DESC)", KEYSPACE, TABLE);
+    public static final String PROFILES_SCHEMA = "CREATE TABLE mappings.profiles (\n" +
+            "    ssp text,\n" +
+            "    id text,\n" +
+            "    marker text,\n" +
+            "    PRIMARY KEY ((ssp, id))\n" +
+            ") WITH bloom_filter_fp_chance = 0.01\n" +
+            "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
+            "    AND comment = ''\n" +
+            "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
+            "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
+            "    AND crc_check_chance = 1.0\n" +
+            "    AND dclocal_read_repair_chance = 0.1\n" +
+            "    AND default_time_to_live = 2592000\n" +
+            "    AND gc_grace_seconds = 864000\n" +
+            "    AND max_index_interval = 2048\n" +
+            "    AND memtable_flush_period_in_ms = 0\n" +
+            "    AND min_index_interval = 128\n" +
+            "    AND read_repair_chance = 0.0\n" +
+            "    AND speculative_retry = '99PERCENTILE';";
+
+    /**
+     * Schema for bulk loading table.
+     * It is important not to forget adding keyspace name before table name,
+     * otherwise CQLSSTableWriter throws exception.
+     */
+    public static final String SEGMENTS_SCHEMA = "CREATE TABLE mappings.segments_mapping (\n" +
+            "    marker text,\n" +
+            "    segment text,\n" +
+            "    \"sourceId\" text,\n" +
+            "    type text,\n" +
+            "    PRIMARY KEY (marker, segment, \"sourceId\", type)\n" +
+            ") WITH CLUSTERING ORDER BY (segment ASC, \"sourceId\" ASC, type ASC)\n" +
+            "    AND bloom_filter_fp_chance = 0.01\n" +
+            "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
+            "    AND comment = ''\n" +
+            "    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}\n" +
+            "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
+            "    AND crc_check_chance = 1.0\n" +
+            "    AND dclocal_read_repair_chance = 0.1\n" +
+            "    AND default_time_to_live = 7776000\n" +
+            "    AND gc_grace_seconds = 864000\n" +
+            "    AND max_index_interval = 2048\n" +
+            "    AND memtable_flush_period_in_ms = 0\n" +
+            "    AND min_index_interval = 128\n" +
+            "    AND read_repair_chance = 0.0\n" +
+            "    AND speculative_retry = '99PERCENTILE';";
 
     /**
      * INSERT statement to bulk load.
      * It is like prepared statement. You fill in place holder for each data.
      */
-    public static final String INSERT_STMT = String.format("INSERT INTO %s.%s (" +
-                                                               "ticker, date, open, high, low, close, volume, adj_close" +
-                                                           ") VALUES (" +
-                                                               "?, ?, ?, ?, ?, ?, ?, ?" +
-                                                           ")", KEYSPACE, TABLE);
+    public static final String INSERT_PROFILES_STMT = "INSERT INTO mappings.profiles (" +
+            "marker,ssp,id" +
+            ") VALUES (" +
+            "?, ?, ?" +
+            ")";
+
+    public static final String INSERT_SEGMENTS_STMT = "INSERT INTO mappings.segments_mapping (" +
+            "marker,segment,\"sourceId\",type" +
+            ") VALUES (" +
+            "?, ?, ?, ?" +
+            ")";
 
     public static void main(String[] args)
     {
         if (args.length == 0)
         {
-            System.out.println("usage: java bulkload.BulkLoad <list of ticker symbols>");
+            System.out.println("usage: java bulkload.BulkLoad <list of files>");
             return;
         }
 
@@ -88,68 +118,77 @@ public class BulkLoad
         Config.setClientMode(true);
 
         // Create output directory that has keyspace and table name in the path
-        File outputDir = new File(DEFAULT_OUTPUT_DIR + File.separator + KEYSPACE + File.separator + TABLE);
-        if (!outputDir.exists() && !outputDir.mkdirs())
+        File profilesDir = new File(DEFAULT_OUTPUT_DIR + File.separator + "profiles" + File.separator);
+        File segmentsDir = new File(DEFAULT_OUTPUT_DIR + File.separator + "segments" + File.separator);
+
+
+        if (!profilesDir.exists() && !profilesDir.mkdirs())
         {
-            throw new RuntimeException("Cannot create output directory: " + outputDir);
+            throw new RuntimeException("Cannot create output directory: " + profilesDir);
+        }
+        if (!segmentsDir.exists() && !segmentsDir.mkdirs())
+        {
+            throw new RuntimeException("Cannot create output directory: " + segmentsDir);
         }
 
         // Prepare SSTable writer
-        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder();
+        CQLSSTableWriter.Builder profilesBuilder = CQLSSTableWriter.builder();
         // set output directory
-        builder.inDirectory(outputDir)
-               // set target schema
-               .forTable(SCHEMA)
-               // set CQL statement to put data
-               .using(INSERT_STMT)
-               // set partitioner if needed
-               // default is Murmur3Partitioner so set if you use different one.
-               .withPartitioner(new Murmur3Partitioner());
-        CQLSSTableWriter writer = builder.build();
+        profilesBuilder.inDirectory(profilesDir)
+                // set target schema
+                .forTable(PROFILES_SCHEMA)
+                // set CQL statement to put data
+                .using(INSERT_PROFILES_STMT)
+                // set partitioner if needed
+                // default is Murmur3Partitioner so set if you use different one.
+                .withPartitioner(new Murmur3Partitioner());
+        CQLSSTableWriter profilesWriter = profilesBuilder.build();
 
-        for (String ticker : args)
+        // Prepare SSTable writer
+        CQLSSTableWriter.Builder segmentsBuilder = CQLSSTableWriter.builder();
+        // set output directory
+        segmentsBuilder.inDirectory(segmentsDir)
+                // set target schema
+                .forTable(SEGMENTS_SCHEMA)
+                // set CQL statement to put data
+                .using(INSERT_SEGMENTS_STMT)
+                // set partitioner if needed
+                // default is Murmur3Partitioner so set if you use different one.
+                .withPartitioner(new Murmur3Partitioner());
+        CQLSSTableWriter segmentsWriter = segmentsBuilder.build();
+
+        for (String file : args)
         {
-            HttpURLConnection conn;
-            try
+            try (BufferedReader reader = new BufferedReader(new FileReader(file)))
             {
-                URL url = new URL(String.format(CSV_URL, ticker));
-                conn = (HttpURLConnection) url.openConnection();
-            }
-            catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-
-            try (
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                CsvListReader csvReader = new CsvListReader(reader, CsvPreference.STANDARD_PREFERENCE)
-            )
-            {
-                if (conn.getResponseCode() != HttpURLConnection.HTTP_OK)
-                {
-                    System.out.println("Historical data not found for " + ticker);
-                    continue;
-                }
-
-                csvReader.getHeader(true);
-
                 // Write to SSTable while reading data
-                List<String> line;
-                while ((line = csvReader.read()) != null)
+                String line;
+                while ((line = reader.readLine()) != null)
                 {
-                    // We use Java types here based on
-                    // http://www.datastax.com/drivers/java/2.0/com/datastax/driver/core/DataType.Name.html#asJavaClass%28%29
-                    writer.addRow(ticker,
-                                  DATE_FORMAT.parse(line.get(0)),
-                                  new BigDecimal(line.get(1)),
-                                  new BigDecimal(line.get(2)),
-                                  new BigDecimal(line.get(3)),
-                                  new BigDecimal(line.get(4)),
-                                  Long.parseLong(line.get(5)),
-                                  new BigDecimal(line.get(6)));
+                    try {
+                        JSONObject obj = new JSONObject(line);
+                        String action = obj.getString("action");
+                        String marker = obj.getString("marker");
+                        String sourceId = obj.getString("sourceId");
+                        String userId = obj.getString("userId");
+                        String segment = obj.getString("segment");
+
+                        if (action.equals("/user/sync/ssps") == true) {
+                            profilesWriter.addRow(marker, sourceId, userId);
+                        } else if (action.equals("/user/sync/dsps") == true) {
+                            segmentsWriter.addRow(marker, sourceId, userId, "dsp");
+                        }
+
+                        if (segment.equals("") == false) {
+                            segmentsWriter.addRow(marker, sourceId, segment, "segment");
+                        }
+                    } catch (org.json.JSONException e) {
+                        System.out.println(line);
+                        e.printStackTrace();
+                    }
                 }
             }
-            catch (InvalidRequestException | ParseException | IOException e)
+            catch (InvalidRequestException | IOException e)
             {
                 e.printStackTrace();
             }
@@ -157,7 +196,8 @@ public class BulkLoad
 
         try
         {
-            writer.close();
+            profilesWriter.close();
+            segmentsWriter.close();
         }
         catch (IOException ignore) {}
     }
