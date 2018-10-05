@@ -156,7 +156,7 @@ public class BulkLoad
                 // default is Murmur3Partitioner so set if you use different one.
                 .withPartitioner(new Murmur3Partitioner());
         CQLSSTableWriter segmentsWriter = segmentsBuilder.build();
-
+int i = 0;
         for (String file : args)
         {
             try (BufferedReader reader = new BufferedReader(new FileReader(file)))
@@ -167,6 +167,7 @@ public class BulkLoad
                 {
                     try {
                         JSONObject obj = new JSONObject(line);
+if (i % 1000 == 0) { System.out.println(i++); } else {i++;}
                         String action = obj.getString("action");
                         String marker = obj.getString("marker");
                         String sourceId = obj.getString("sourceId");
