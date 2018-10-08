@@ -15,7 +15,7 @@ package bulkload;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStreamReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.text.ParseException;
 import java.lang.System;
@@ -157,41 +157,39 @@ public class BulkLoad
                 .withPartitioner(new Murmur3Partitioner());
         CQLSSTableWriter segmentsWriter = segmentsBuilder.build();
 int i = 0;
-        for (String file : args)
-        {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in), 512000))
-            {
-                // Write to SSTable while reading data
-                String line;
-                while ((line = reader.readLine()) != null)
-                {
-                    try {
-                        JSONObject obj = new JSONObject(line);
-                        i++;
-                        String action = obj.getString("action");
-                        String marker = obj.getString("marker");
-                        String sourceId = obj.getString("sourceId");
-                        String userId = obj.getString("userId");
-                        String segment = obj.getString("segment");
+        for (String name : args) {
+            final File folder = new File(name);
+            for (final File fileEntry : folder.listFiles()) {
+                try (BufferedReader reader = new BufferedReader(new GZIPInputStream(new FileReader(fileEntry)))) {
+                    // Write to SSTable while reading data
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        try {
+                            JSONObject obj = new JSONObject(line);
+                            i++;
+                            String action = obj.getString("action");
+                            String marker = obj.getString("marker");
+                            String sourceId = obj.getString("sourceId");
+                            String userId = obj.getString("userId");
+                            String segment = obj.getString("segment");
 
-                        if (action.equals("/user/sync/ssps") == true) {
-                            profilesWriter.addRow(marker, sourceId, userId);
-                        } else if (action.equals("/user/sync/dsps") == true) {
-                            segmentsWriter.addRow(marker, sourceId, userId, "dsp");
-                        }
+                            if (action.equals("/user/sync/ssps") == true) {
+                                profilesWriter.addRow(marker, sourceId, userId);
+                            } else if (action.equals("/user/sync/dsps") == true) {
+                                segmentsWriter.addRow(marker, sourceId, userId, "dsp");
+                            }
 
-                        if (segment.equals("") == false) {
-                            segmentsWriter.addRow(marker, sourceId, segment, "segment");
+                            if (segment.equals("") == false) {
+                                segmentsWriter.addRow(marker, sourceId, segment, "segment");
+                            }
+                        } catch (org.json.JSONException e) {
+                            System.out.println(line);
+                            e.printStackTrace();
                         }
-                    } catch (org.json.JSONException e) {
-                        System.out.println(line);
-                        e.printStackTrace();
                     }
+                } catch (InvalidRequestException | IOException e) {
+                    e.printStackTrace();
                 }
-            }
-            catch (InvalidRequestException | IOException e)
-            {
-                e.printStackTrace();
             }
         }
 
