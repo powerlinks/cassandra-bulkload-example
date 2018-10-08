@@ -118,8 +118,8 @@ public class BulkLoad
         Config.setClientMode(true);
 
         // Create output directory that has keyspace and table name in the path
-        File profilesDir = new File(DEFAULT_OUTPUT_DIR + File.separator + "profiles" + File.separator);
-        File segmentsDir = new File(DEFAULT_OUTPUT_DIR + File.separator + "segments" + File.separator);
+        File profilesDir = new File(DEFAULT_OUTPUT_DIR + File.separator + KEYSPACE + File.separator + "profiles" + File.separator);
+        File segmentsDir = new File(DEFAULT_OUTPUT_DIR + File.separator + KEYSPACE + File.separator + "segments" + File.separator);
 
 
         if (!profilesDir.exists() && !profilesDir.mkdirs())
