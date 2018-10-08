@@ -167,7 +167,7 @@ int i = 0;
                 {
                     try {
                         JSONObject obj = new JSONObject(line);
-if (i % 10000 == 0) { System.out.println(i++); } else {i++;}
+                        i++;
                         String action = obj.getString("action");
                         String marker = obj.getString("marker");
                         String sourceId = obj.getString("sourceId");
@@ -201,5 +201,7 @@ if (i % 10000 == 0) { System.out.println(i++); } else {i++;}
             segmentsWriter.close();
         }
         catch (IOException ignore) {}
+
+        System.out.println(i);
     }
 }
