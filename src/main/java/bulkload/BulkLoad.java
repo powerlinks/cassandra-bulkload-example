@@ -15,8 +15,10 @@ package bulkload;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.zip.GZIPInputStream;
+import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.lang.System;
 
@@ -160,7 +162,7 @@ int i = 0;
         for (String name : args) {
             final File folder = new File(name);
             for (final File fileEntry : folder.listFiles()) {
-                try (BufferedReader reader = new BufferedReader(new GZIPInputStream(new FileReader(fileEntry)))) {
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(fileEntry))))) {
                     // Write to SSTable while reading data
                     String line;
                     while ((line = reader.readLine()) != null) {
