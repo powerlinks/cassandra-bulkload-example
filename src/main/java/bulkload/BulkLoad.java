@@ -159,7 +159,7 @@ public class BulkLoad
 int i = 0;
         for (String file : args)
         {
-            try (BufferedReader reader = new BufferedReader(System.in))
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in), 512000))
             {
                 // Write to SSTable while reading data
                 String line;
