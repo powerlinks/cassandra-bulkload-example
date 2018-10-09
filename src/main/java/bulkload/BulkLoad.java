@@ -178,12 +178,12 @@ int i = 0;
                             if (action.equals("/user/sync/ssps") == true) {
                                 profilesWriter.addRow(marker, sourceId, userId);
                             } else if (action.equals("/user/sync/dsps") == true) {
-                                segmentsWriter.addRow(marker, sourceId, userId, "dsp");
+                                segmentsWriter.addRow(marker, userId, sourceId, "dsp");
                             }
 
                             if (segment.equals("") == false) {
-                                segmentsWriter.addRow(marker, sourceId, segment, "segment");
                             }
+                            segmentsWriter.addRow(marker, segment, sourceId, "segment");
                         } catch (org.json.JSONException e) {
                             System.out.println(line);
                             e.printStackTrace();
