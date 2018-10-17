@@ -173,7 +173,7 @@ int i = 0;
                             String marker = obj.getString("marker");
                             String sourceId = obj.getString("sourceId");
                             String userId = obj.getString("userId");
-                            String segment = obj.getString("segment");
+                            String segment = obj.getString("segment").replace("/", "");
 
                             if (action.equals("/user/sync/ssps") == true) {
                                 profilesWriter.addRow(marker, sourceId, userId);
