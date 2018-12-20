@@ -182,8 +182,8 @@ int i = 0;
                             }
 
                             if (segment.equals("") == false) {
+                                segmentsWriter.addRow(marker, segment, sourceId, "segment");
                             }
-                            segmentsWriter.addRow(marker, segment, sourceId, "segment");
                         } catch (org.json.JSONException e) {
                             System.out.println(line);
                             e.printStackTrace();
