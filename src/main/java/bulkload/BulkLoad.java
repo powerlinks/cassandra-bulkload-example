@@ -167,6 +167,11 @@ public class BulkLoad
 int i = 0;
         for (String name : args) {
             final File folder = new File(name);
+
+            if (folder == null) {
+                continue;
+            }
+
             for (final File fileEntry : folder.listFiles()) {
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(fileEntry))))) {
                     // Write to SSTable while reading data
