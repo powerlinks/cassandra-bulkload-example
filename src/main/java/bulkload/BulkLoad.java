@@ -91,7 +91,7 @@ public class BulkLoad
             "    AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}\n" +
             "    AND crc_check_chance = 1.0\n" +
             "    AND dclocal_read_repair_chance = 0.1\n" +
-            "    AND default_time_to_live = 7776000\n" +
+            "    AND default_time_to_live = 2592000\n" +
             "    AND gc_grace_seconds = 864000\n" +
             "    AND max_index_interval = 2048\n" +
             "    AND memtable_flush_period_in_ms = 0\n" +
