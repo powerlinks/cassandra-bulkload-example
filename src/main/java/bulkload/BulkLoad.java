@@ -13,6 +13,9 @@
  */
 package bulkload;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,6 +37,9 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
  */
 public class BulkLoad
 {
+    public static final Map<String, String> Buyers = new HashMap<String, String>() {{
+        put("px.ads.linkedin.com", "39aec391-aa8b-4f3d-994c-0bfb787df3d1");
+    }};
     /** Default output directory */
     public static final String DEFAULT_OUTPUT_DIR = "./data";
 
@@ -174,6 +180,7 @@ int i = 0;
                             String sourceId = obj.getString("sourceId");
                             String userId = obj.getString("userId");
                             String segment = obj.getString("segment").replace("/", "");
+                            String redirect = obj.getString("redirect");
 
                             if (action.equals("/user/sync/ssps") == true) {
                                 profilesWriter.addRow(marker, sourceId, userId);
@@ -183,6 +190,11 @@ int i = 0;
 
                             if (segment.equals("") == false) {
                                 segmentsWriter.addRow(marker, segment, sourceId, "segment");
+                            }
+
+                            String id = Buyers.get(redirect);
+                            if (id != null) {
+                                segmentsWriter.addRow(marker, "", id, "dsp");
                             }
                         } catch (org.json.JSONException e) {
                             System.out.println(line);
