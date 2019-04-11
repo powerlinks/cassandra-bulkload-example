@@ -14,6 +14,7 @@
 package bulkload;
 
 import java.util.Map;
+import java.util.List;
 import java.util.HashMap;
 
 import java.io.BufferedReader;
@@ -172,7 +173,13 @@ int i = 0;
                 continue;
             }
 
-            for (final File fileEntry : folder.listFiles()) {
+            File[] files = folder.listFiles();
+
+            if (files == null) {
+                continue;
+            }
+
+            for (final File fileEntry : files) {
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(fileEntry))))) {
                     // Write to SSTable while reading data
                     String line;
