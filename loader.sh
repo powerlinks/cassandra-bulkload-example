@@ -6,6 +6,8 @@ region=$2
 
 working_dir=$(realpath ".")
 
+mkdir -p ${working_dir}/tmp/data
+
 case $region in
     "eastus")
         account_name="dmpeastus"
