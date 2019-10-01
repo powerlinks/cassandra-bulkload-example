@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
 set -ex
 
+function retry {
+  local retries=$1
+  shift
+
+  local count=0
+  until "$@"; do
+    exit=$?
+    wait=$((2 ** $count))
+    count=$(($count + 1))
+    if [ $count -lt $retries ]; then
+      echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      echo "Retry $count/$retries exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
+}
+
 pattern=$1
 region=$2
 
@@ -34,7 +54,7 @@ echo "Processed files in $(($(date +"%s%3N") - $start))ms"
 
 cassandra_passwd="NJ*hpzx]RnzY{2e]"
 
-sstableloader -d ${cassandra_ip} -u dmpuser -pw ${cassandra_passwd} ${working_dir}/data/mappings/profiles/
-sstableloader -d ${cassandra_ip} -u dmpuser -pw ${cassandra_passwd} ${working_dir}/data/mappings/segments_mapping/
+retry 5 sstableloader -d ${cassandra_ip} -u dmpuser -pw ${cassandra_passwd} ${working_dir}/data/mappings/profiles/
+retry 5 sstableloader -d ${cassandra_ip} -u dmpuser -pw ${cassandra_passwd} ${working_dir}/data/mappings/segments_mapping/
 
 rm -rf ${working_dir}/tmp/data/*
