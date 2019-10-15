@@ -56,7 +56,7 @@ public class BulkLoad
             "    ssp text,\n" +
             "    id text,\n" +
             "    marker text,\n" +
-            "    PRIMARY KEY ((ssp, id))\n" +
+            "    PRIMARY KEY ((ssp, id), marker)\n" +
             ") WITH bloom_filter_fp_chance = 0.01\n" +
             "    AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}\n" +
             "    AND comment = ''\n" +
