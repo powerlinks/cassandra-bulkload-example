@@ -37,7 +37,7 @@ case $region in
     "westeurope")
         account_name="dmpwesteurope"
         account_key="qYBhnNAsc6WNPOvpgEbDAlHIr5UJjeuoPDlmNCuIoQRKMJ7clsjwks5MOKr4KV5tidG/DSJ6UhmBsS8jFxdY0A=="
-        cassandra_ip=10.1.1.4
+        cassandra_ip=10.1.1.10
     ;;
 esac
 
