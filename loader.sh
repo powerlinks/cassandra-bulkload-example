@@ -58,3 +58,4 @@ retry 5 sstableloader -d ${cassandra_ip} -u dmpuser -pw ${cassandra_passwd} ${wo
 retry 5 sstableloader -d ${cassandra_ip} -u dmpuser -pw ${cassandra_passwd} ${working_dir}/data/mappings/segments_mapping/
 
 rm -rf ${working_dir}/tmp/data/*
+rm -rf ${working_dir}/data/mappings/*
